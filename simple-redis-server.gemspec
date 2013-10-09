@@ -17,4 +17,6 @@ Gem::Specification.new do |gem|
 
   gem.add_runtime_dependency "redis"
   gem.add_runtime_dependency "childprocess"
+
+  gem.add_development_dependency "rake"
 end
