@@ -15,10 +15,10 @@ class Redis::Server
     @config[:'daemonize'] ||= "no"
     @config[:'bind'] ||= "127.0.0.1"
     @config[:'port'] ||= "#{find_available_port}"
-    @config[:'logfile'] ||= Tempfile.new('redis-slave-logfile').path
+    @config[:'logfile'] ||= Tempfile.new('redis-server-logfile').path
     @config[:'save'] ||= "900 1"
     @config[:'rdbcompression'] ||= "yes"
-    @config[:'dbfilename'] ||= "dump.rdb"
+    @config[:'dbfilename'] ||= "redis_server.rdb"
     @config[:'dir'] ||= Dir.tmpdir
     @config[:'appendonly'] ||= "no"
     @config[:'appendfsync'] ||= "no"
@@ -28,24 +28,38 @@ class Redis::Server
 
   def start
     return if started?
-    @process = ChildProcess.new('redis-server -')
+    @process = ChildProcess.new('redis-server','-')
     process.duplex = true
     process.start
-    at_exit{ process.send(:send_kill) }
+    at_exit{
+      save
+      stop
+    }
     process.io.stdin.puts config.to_s
     process.io.stdin.close
     @started = process.alive?
   end
 
+  def start!
+    start
+    started? or raise "failed to start redis server"
+  end
+
+  def save
+    connection.save if connection
+  end
+
   def stop
-    return unless started?
-    process.stop
+    process.stop if started?
+  end
+
+  def connection
+    @connection ||= connect if started?
   end
 
   def connect options={}
-    options[:host]     ||= config[:bind]
-    options[:port]     ||= config[:port]
-
+    options[:host] ||= config[:bind]
+    options[:port] ||= config[:port]
     Redis.new(options)
   end
 
